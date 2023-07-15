@@ -11,24 +11,26 @@ import (
 
 const WeshitPath = "/data/user/[UID]/com.tencent.mm"
 
+var UserSdcardPrefix = "/storage/emulated/[UID]"
+
 var WeshitUserPath = "/data/user/[UID]/com.tencent.mm/MicroMsg/[32ID]"
-var WeshitUserPathSdcard = "/sdcard/Android/data/com.tencent.mm/MicroMsg/[32ID]"
+var WeshitUserPathSdcard = UserSdcardPrefix + "/Android/data/com.tencent.mm/MicroMsg/[32ID]"
 
 var PathEnMicroMsgDB = "EnMicroMsg.db"
 var PathWxFileIndexDB = "WxFileIndex.db"
 
-const version = "v20230715"
+const version = "v20230716"
 
 func main() {
 	fmt.Printf("\n\nWechat-Clean %s\n\n", version)
 
-	var auserId int
+	var aUserId int
 	var user32HexId string
 	var KeyDb string
 	var commandType string
 	var fromType string
 	var VacuumDb string
-	flag.IntVar(&auserId, "user", 0, "Android user id")
+	flag.IntVar(&aUserId, "user", 0, "Android user id")
 	flag.StringVar(&KeyDb, "key", "", "db key")
 	flag.StringVar(&user32HexId, "id", "", "user 32 length hex id")
 	flag.StringVar(&commandType, "cmd", "scan", "scan/clean")
@@ -56,7 +58,9 @@ func main() {
 		log.Fatalf("防止误操作, 不支持删除全部数据, 删除全部数据建议通过直接删除目录或者应用的形式进行！")
 	}
 
-	WeshitUserPath = fmt.Sprintf("/data/user/%d/com.tencent.mm/MicroMsg/%s", auserId, user32HexId)
+	UserSdcardPrefix = fmt.Sprintf("/storage/emulated/%d", aUserId)
+
+	WeshitUserPath = fmt.Sprintf("/data/user/%d/com.tencent.mm/MicroMsg/%s", aUserId, user32HexId)
 
 	PathEnMicroMsgDB = fmt.Sprintf("%s/EnMicroMsg.db", WeshitUserPath)
 	PathWxFileIndexDB = fmt.Sprintf("%s/WxFileIndex.db", WeshitUserPath)

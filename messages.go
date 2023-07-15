@@ -329,7 +329,7 @@ func DetectSdcardDirPath(db *sql.DB) string {
 	if Exists(mappingPath) {
 		mappingHash, err := os.ReadFile(mappingPath)
 		if err == nil && len(mappingHash) == 32 {
-			userSdcardPath = "/sdcard/Android/data/com.tencent.mm/MicroMsg/" + string(mappingHash)
+			userSdcardPath = UserSdcardPrefix + "/Android/data/com.tencent.mm/MicroMsg/" + string(mappingHash)
 			log.Printf("Found user sdcard path via mappingHash: %s", userSdcardPath)
 			if Exists(userSdcardPath) {
 				return userSdcardPath
@@ -342,7 +342,7 @@ func DetectSdcardDirPath(db *sql.DB) string {
 
 	db.QueryRow("SELECT orgpath FROM \"VideoHash\" WHERE orgpath like '%/MicroMsg/%' limit 1;").Scan(&orgPath)
 	subMatches := pathRegex.FindStringSubmatch(orgPath)
-	userSdcardPath = "/sdcard" + subMatches[1]
+	userSdcardPath = UserSdcardPrefix + subMatches[1]
 
 	if Exists(userSdcardPath) {
 		log.Printf("Found user sdcard path via VideoHash: %s", userSdcardPath)
@@ -351,7 +351,7 @@ func DetectSdcardDirPath(db *sql.DB) string {
 
 	db.QueryRow("SELECT path FROM \"MediaDuplication\"  WHERE path like '%/MicroMsg/%'  limit 1;").Scan(&orgPath)
 	subMatches = pathRegex.FindStringSubmatch(orgPath)
-	userSdcardPath = "/sdcard" + subMatches[1]
+	userSdcardPath = UserSdcardPrefix + subMatches[1]
 	if Exists(userSdcardPath) {
 		log.Printf("Found user sdcard path via MediaDuplication: %s", userSdcardPath)
 		return userSdcardPath
@@ -514,7 +514,7 @@ func cleanCheckUpdate() {
 
 func cleanSdcardCache() {
 	// /data/data/com.tencent.mm/MicroMsg/CheckResUpdate/
-	var path = "/sdcard/Android/data/com.tencent.mm/cache"
+	var path = UserSdcardPrefix + "/Android/data/com.tencent.mm/cache"
 	removeSubDirAndFiles(path)
 	log.Printf("Deleted Sdcard cache directory")
 }
