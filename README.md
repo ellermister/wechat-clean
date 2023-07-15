@@ -138,7 +138,7 @@ print(key)
 ```bash
 ./wechat-clean -h
 
-Wechat-Clean v20230715
+Wechat-Clean v20230716
 
 Usage of ./wechat-clean:
   -cmd string
@@ -148,7 +148,11 @@ Usage of ./wechat-clean:
   -id string
         user 32 length hex id
   -key string
-        db key 
+        db key
+  -user int
+        Android user id
+  -vd string
+        Vacuum db full path
 ```
 
 ### 扫描
