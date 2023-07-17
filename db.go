@@ -46,7 +46,7 @@ func ConnectDB(path string, key string) *sql.DB {
 		log.Fatalf("Set PRAGMA kdf_iter Error %v\n", err)
 	}
 	var result string
-	//db.Exec(fmt.Sprintf("PRAGMA auto_vacuum = 2"))
+	//db.Exec(fmt.Sprintf("PRAGMA auto_vacuum = 1"))
 	err = db.QueryRow(fmt.Sprintf("PRAGMA auto_vacuum")).Scan(&result)
 	if err != nil {
 		log.Fatalf("Set PRAGMA auto_vacuum Error %v\n", err)
@@ -54,4 +54,62 @@ func ConnectDB(path string, key string) *sql.DB {
 	log.Printf("ddd auto_vacuum = %v", result)
 
 	return db
+}
+
+func deleteRowsByIds(db *sql.DB, tableName string, columnName string, columnValue []int64) int64 {
+	if len(columnValue) == 0 {
+		return 0
+	}
+	sql := fmt.Sprintf("DELETE FROM %s WHERE %s in(%s)", tableName, columnName, implodeI2S(columnValue, ","))
+	result, err := db.Exec(sql)
+	if err != nil {
+		log.Fatalf("deleteRowsByIds for table %s failed", tableName)
+	}
+
+	rows, err2 := result.RowsAffected()
+	if err2 != nil {
+		log.Printf("get affected rows error %v", err2)
+	}
+
+	return rows
+}
+
+func getTablesRowsTotal(db *sql.DB, showLimit int64) {
+	records, err := db.Query("SELECT name  FROM sqlite_master WHERE type ='table'")
+
+	var tables []string
+	if err != nil {
+		log.Printf("Err in get tables rows total query, %e", err)
+	} else {
+		for records.Next() {
+			var name string
+			records.Scan(&name)
+			tables = append(tables, name)
+		}
+	}
+
+	records.Close()
+
+	for _, tblName := range tables {
+		var rowsTotal int64
+		err2 := db.QueryRow(fmt.Sprintf("SELECT COUNT(*) as count FROM %s", tblName)).Scan(&rowsTotal)
+		if err2 != nil {
+			log.Printf("Err in get count table, %e", err2)
+		} else if rowsTotal > showLimit {
+			log.Printf("Table [%s]\tTotal:%d", tblName, rowsTotal)
+		}
+
+	}
+}
+
+func CleanTable(db *sql.DB, tableName string) int64 {
+	result, err := db.Exec(fmt.Sprintf("DELETE FROM %s", tableName))
+
+	if err != nil {
+		log.Printf("Clean Table failed, err: %e", err)
+		return 0
+	}
+
+	rows, _ := result.RowsAffected()
+	return rows
 }

@@ -9,7 +9,8 @@ import (
 	_ "github.com/mutecomm/go-sqlcipher"
 )
 
-const WeshitPath = "/data/user/[UID]/com.tencent.mm"
+var WeshitPath = "/data/user/[UID]/com.tencent.mm"
+var MicroMsgPath = "/data/user/[UID]/com.tencent.mm/MicroMsg"
 
 var UserSdcardPrefix = "/storage/emulated/[UID]"
 
@@ -19,7 +20,7 @@ var WeshitUserPathSdcard = UserSdcardPrefix + "/Android/data/com.tencent.mm/Micr
 var PathEnMicroMsgDB = "EnMicroMsg.db"
 var PathWxFileIndexDB = "WxFileIndex.db"
 
-const version = "v20230716"
+const version = "v20230717"
 
 func main() {
 	fmt.Printf("\n\nWechat-Clean %s\n\n", version)
@@ -58,6 +59,8 @@ func main() {
 		log.Fatalf("防止误操作, 不支持删除全部数据, 删除全部数据建议通过直接删除目录或者应用的形式进行！")
 	}
 
+	WeshitPath = fmt.Sprintf("/data/user/%d/com.tencent.mm", aUserId)
+	MicroMsgPath = fmt.Sprintf("/data/user/%d/com.tencent.mm/MicroMsg", aUserId)
 	UserSdcardPrefix = fmt.Sprintf("/storage/emulated/%d", aUserId)
 
 	WeshitUserPath = fmt.Sprintf("/data/user/%d/com.tencent.mm/MicroMsg/%s", aUserId, user32HexId)
@@ -70,6 +73,20 @@ func main() {
 
 	if CheckDB(PathEnMicroMsgDB) == false {
 		log.Fatal("This database file is not encrypted, will be skipped.")
+	}
+
+	// 在连接前清理工作区
+	if commandType == "clean" {
+		// 提前删除预写缓存文件
+		if Exists(PathEnMicroMsgDB + "-wal") {
+			os.Remove(PathEnMicroMsgDB + "-wal")
+		}
+		if Exists(PathWxFileIndexDB + "-wal") {
+			os.Remove(PathWxFileIndexDB + "-wal")
+		}
+
+		DisableAPP("com.tencent.mm")
+		defer EnableApp("com.tencent.mm")
 	}
 
 	db := ConnectDB(PathEnMicroMsgDB, KeyDb)
@@ -87,19 +104,10 @@ func main() {
 
 	if commandType == "scan" {
 		log.Printf(">> This operation is a test, is safed! << ")
-	} else {
-		// 提前删除预写缓存文件
-		if Exists(PathEnMicroMsgDB + "-wal") {
-			os.Remove(PathEnMicroMsgDB + "-wal")
-		}
-		if Exists(PathWxFileIndexDB + "-wal") {
-			os.Remove(PathWxFileIndexDB + "-wal")
-		}
 	}
 	log.Printf(">> The scope of this scan is %s << ", fromType)
 
-	messageCount := getMessagesCount(db)
-	log.Printf("Get %d message records\n", messageCount)
+	getTablesRowsTotal(db, 10000)
 
 	var scanResult scannedFile
 	if fromType == "all" {

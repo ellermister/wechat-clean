@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 )
@@ -99,4 +101,20 @@ func implodeI2S(ids []int64, char string) string {
 		strIds = append(strIds, strconv.FormatInt(id, 10))
 	}
 	return strings.Join(strIds, char)
+}
+
+func DisableAPP(packageName string) {
+	cmd := exec.Command("pm", "disable", packageName)
+	err := cmd.Run()
+	if err != nil {
+		log.Printf("Failed to Disable app:%s, err: %e", packageName, err)
+	}
+}
+
+func EnableApp(packageName string) {
+	cmd := exec.Command("pm", "enable", packageName)
+	err := cmd.Run()
+	if err != nil {
+		log.Printf("Failed to Enable app:%s, err: %e", packageName, err)
+	}
 }

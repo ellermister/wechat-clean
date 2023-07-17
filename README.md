@@ -165,6 +165,8 @@ Usage of ./wechat-clean:
 
 ### 清理群相关记录
 
+**本程序最适合也只建议清理群消息。**
+
 ```bash
 ./wechat-clean -id [32位用户ID] -key [7位密码] -from groups -cmd clean
 ```
@@ -175,6 +177,63 @@ Usage of ./wechat-clean:
 
 ```
 ./wechat-clean -vd /data/data/com.tencent.mm/MicroMsg/*****/EnMicroMsg.db -key 1122334
+```
+
+vacuum 只会将已经删除记录空间释放，如果没有删除是无法缩减的。
+
+> sqlite + sqlcipher 在Android上执行 vacuum  时，会把数据库吞进内存处理，内存几乎是文件的2倍，然后涨到2.5G左右时被OOM或者其他系统机制干掉，具体原因不明。
+
+对于数据库大于 1GB 的文件将在 clean 排程中跳过，你需要将 EnMicroMsg.db 通过 adb复制到 windows 等，缩减后再放回去。
+
+以下参考：
+
+```bash
+android #
+cp /data/data/com.tencent.mm/MicroMsg/****/EnMicroMsg.db /data/local/tmp
+
+win #
+adb pull /data/local/tmp/EnMicroMsg.db .
+./wechat-clean -vd /data/data/com.tencent.mm/MicroMsg/*****/EnMicroMsg.db -key 1122334
+adb push EnMicroMsg.db /data/local/tmp
+
+android #
+cp /data/local/tmp/EnMicroMsg.db /data/data/com.tencent.mm/MicroMsg/****/EnMicroMsg.db
+```
+
+
+
+## 其他
+
+记录一些快捷指令
+
+### 查看子目录占用大小
+
+```
+android:/data/data/com.tencent.mm # du -h -d 1
+3.5K    ./code_cache
+499M    ./files
+2.0G    ./MicroMsg
+3.5K    ./app_lib
+3.5K    ./app_dex
+3.5K    ./app_cache
+3.5K    ./app_recover_lib
+1.4M    ./shared_prefs
+```
+
+### 冻结恢复应用
+
+在执行 clean 时程序会自动冻结你的程序并在完成后恢复，如果意外没有恢复，你可以手动执行。
+
+**冻结应用**
+
+```
+adb disable com.tencent.mm
+```
+
+**恢复应用**
+
+```
+adb enable com.tencent.mm
 ```
 
 
@@ -195,6 +254,10 @@ Usage of ./wechat-clean:
 | appattach                 | 一部分下载的文件、一部分图文聊天记录的转发？                 | 可清理，内容几百条 |
 | ChatroomNoticeAttachIndex | 聊天记录转发产生的HTM文件，路径不存在可请                    | 可清不存在的记录   |
 | EmojiInfo                 | 表情、贴图表                                                 |                    |
+| CleanDeleteItem           | 删除的项目，看名字就可以删除                                 | 全清               |
+| img_flag                  | 用户的头像映射                                               | 全清               |
+| BizTimeLineInfo           | 公众号的推送会话列表                                         | 全清               |
+| rconversation             | 最近会话列表                                                 | 无需清             |
 
 
 
@@ -444,7 +507,7 @@ SELECT * FROM "WxFileIndex3" where msgType=1090519089;
 
 # 目录
 
-另外补充几个长年累月体积不小的目录，没有分析也不太好删除。
+另外补充几个长年累月体积不小的目录、
 
 ```
 :/data/data/com.tencent.mm # du -h -d 1
@@ -452,7 +515,7 @@ SELECT * FROM "WxFileIndex3" where msgType=1090519089;
 2.9G    ./MicroMsg  用户数据
 130M    ./app_tbs_64 浏览器内核
 
-杂七杂八的浏览器内核缓存和热更新
+杂七杂八的浏览器内核缓存和热更新，可以无脑删除。
 102M    ./app_xwalkplugin
 179M    ./app_xwalk_5169
 228M    ./lib-

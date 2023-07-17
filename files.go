@@ -171,14 +171,46 @@ loop:
 func removeSubDirAndFiles(dirname string) {
 	files, err := ioutil.ReadDir(dirname)
 	if err != nil {
-		log.Printf("removeSubDirAndFiles err:  %v", err)
+		log.Printf("err in removeSubDirAndFiles:  %v", err)
 		return
 	}
 
 	// 判断底下是否有文件
 	if len(files) > 0 {
 		for _, filename := range files {
-			os.RemoveAll(dirname + "/" + filename.Name())
+			err2 := os.RemoveAll(dirname + "/" + filename.Name())
+			if err2 != nil {
+				log.Printf("Failed to remove path: %s, err: %e", dirname+"/"+filename.Name(), err2)
+			} else {
+				log.Printf("Removed path: %s", dirname+"/"+filename.Name())
+			}
+
 		}
+	}
+}
+
+func FileSize(path string) int64 {
+	file, err := os.Open(path)
+	defer file.Close()
+	if err != nil {
+		log.Printf("Open the file failed: %e", err)
+	}
+	fi, err := file.Stat()
+	if err != nil {
+		log.Printf("Get file failed, %e", err)
+	}
+	return fi.Size()
+}
+
+func removeFileByGlob(pathGlob string) {
+	files1, _ := filepath.Glob(pathGlob)
+	for _, path := range files1 {
+		err := os.Remove(path)
+		if err != nil {
+			log.Printf("Failed to remove path: %s, err: %e", path, err)
+		} else {
+			log.Printf("Removed  path: %s", path)
+		}
+
 	}
 }

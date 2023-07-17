@@ -76,7 +76,7 @@ func ScanMessages(db *sql.DB, fromType int) scannedFile {
 		var fileType int
 		var msgId int64
 		var msgSvrId sql.NullInt64
-		var imgPath string
+		var imgPath sql.NullString
 		var talker string
 		var bigImgPath sql.NullString
 		var midImgPath sql.NullString
@@ -89,57 +89,59 @@ func ScanMessages(db *sql.DB, fromType int) scannedFile {
 			log.Fatalf("Get records error %e", err)
 		}
 
-		var fileTypeSupport = IsSupportType(fileType)
-		paths := BuildFilePath(fileType, imgPath)
+		if imgPath.Valid {
+			var fileTypeSupport = IsSupportType(fileType)
+			paths := BuildFilePath(fileType, imgPath.String)
 
-		paths2 := BuildBigImgPath(bigImgPath)
-		paths3 := BuildBigImgPath(midImgPath)
-		paths4 := BuildBigImgPath(bigImgPath2)
-		paths5 := BuildBigImgPath(midImgPath2)
+			paths2 := BuildBigImgPath(bigImgPath)
+			paths3 := BuildBigImgPath(midImgPath)
+			paths4 := BuildBigImgPath(bigImgPath2)
+			paths5 := BuildBigImgPath(midImgPath2)
 
-		paths6 := BuildBigImgPath(hevcPath)
-		paths7 := BuildBigImgPath(hevcPath2)
+			paths6 := BuildBigImgPath(hevcPath)
+			paths7 := BuildBigImgPath(hevcPath2)
 
-		paths = append(paths, paths2...)
-		paths = append(paths, paths3...)
-		paths = append(paths, paths4...)
-		paths = append(paths, paths5...)
-		paths = append(paths, paths6...)
-		paths = append(paths, paths7...)
+			paths = append(paths, paths2...)
+			paths = append(paths, paths3...)
+			paths = append(paths, paths4...)
+			paths = append(paths, paths5...)
+			paths = append(paths, paths6...)
+			paths = append(paths, paths7...)
 
-		paths = removeDuplicate(paths)
+			paths = removeDuplicate(paths)
 
-		var tmpFilesSize int64 = 0
-		for _, absPath := range paths {
-			tmpFilesSize += StatFileSize(absPath)
+			var tmpFilesSize int64 = 0
+			for _, absPath := range paths {
+				tmpFilesSize += StatFileSize(absPath)
 
-			foundFilesName = append(foundFilesName, filepath.Base(absPath))
-			scanResult.foundFiles = append(scanResult.foundFiles, absPath)
+				foundFilesName = append(foundFilesName, filepath.Base(absPath))
+				scanResult.foundFiles = append(scanResult.foundFiles, absPath)
 
-			collectFileStat(&allStatFileType, fileType, absPath)
-		}
-
-		allStat.filesSize += tmpFilesSize
-		allStat.filesCount += int64(len(paths))
-		allStat.records++
-		if fileTypeSupport && len(paths) == 0 {
-			allStat.invalidFileRecords++
-			//write.WriteString(fmt.Sprintf("%s,%s,%s,%s\n", msgId, fileType, imgPath, talker))
-		}
-
-		if strings.Contains(talker, "@chatroom") {
-			groupsStat.records++
-			groupsStat.filesCount += int64(len(paths))
-			groupsStat.filesSize += tmpFilesSize
-			if fileTypeSupport && len(paths) == 0 {
-				groupsStat.invalidFileRecords++
+				collectFileStat(&allStatFileType, fileType, absPath)
 			}
-		} else {
-			friendsStat.records++
-			friendsStat.filesCount += int64(len(paths))
-			friendsStat.filesSize += tmpFilesSize
+
+			allStat.filesSize += tmpFilesSize
+			allStat.filesCount += int64(len(paths))
+			allStat.records++
 			if fileTypeSupport && len(paths) == 0 {
-				friendsStat.invalidFileRecords++
+				allStat.invalidFileRecords++
+				//write.WriteString(fmt.Sprintf("%s,%s,%s,%s\n", msgId, fileType, imgPath, talker))
+			}
+
+			if strings.Contains(talker, "@chatroom") {
+				groupsStat.records++
+				groupsStat.filesCount += int64(len(paths))
+				groupsStat.filesSize += tmpFilesSize
+				if fileTypeSupport && len(paths) == 0 {
+					groupsStat.invalidFileRecords++
+				}
+			} else {
+				friendsStat.records++
+				friendsStat.filesCount += int64(len(paths))
+				friendsStat.filesSize += tmpFilesSize
+				if fileTypeSupport && len(paths) == 0 {
+					friendsStat.invalidFileRecords++
+				}
 			}
 		}
 
@@ -201,17 +203,17 @@ func BuildQuerySql(fromType int) string {
 		// 为什么不用 img.msglocalid 关联, 因为实际数据中有一部分没有 msglocalid, msgSvrId 更全面
 		sqlText = `SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
 			left join ImgInfo2 as img on img.msglocalid=m.msgId 
-			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where m.imgPath != ''  order by m.msgId desc`
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId  order by m.msgId desc`
 		break
 	case FromTypeFriends:
 		sqlText = `SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
 			left join ImgInfo2 as img on img.msglocalid=m.msgId 
-			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where m.imgPath != '' and m.talker not like '%@chatroom'    order by m.msgId desc`
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker not like '%@chatroom'    order by m.msgId desc`
 		break
 	case FromTypeGroups:
 		sqlText = `SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
 			left join ImgInfo2 as img on img.msglocalid=m.msgId 
-			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where m.imgPath != '' and m.talker like '%@chatroom'    order by m.msgId desc`
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker like '%@chatroom'    order by m.msgId desc`
 		break
 	default:
 		log.Fatalln("Invalid fromType")
@@ -369,24 +371,6 @@ func getMessagesCount(db *sql.DB) int {
 	return messageCount
 }
 
-func deleteRowsByIds(db *sql.DB, tableName string, columnName string, columnValue []int64) int64 {
-	if len(columnValue) == 0 {
-		return 0
-	}
-	sql := fmt.Sprintf("DELETE FROM %s WHERE %s in(%s)", tableName, columnName, implodeI2S(columnValue, ","))
-	result, err := db.Exec(sql)
-	if err != nil {
-		log.Fatalf("deleteRowsByIds for table %s failed", tableName)
-	}
-
-	rows, err2 := result.RowsAffected()
-	if err2 != nil {
-		log.Printf("get affected rows error %v", err2)
-	}
-
-	return rows
-}
-
 func deleteUserMessage(db *sql.DB, msgIds []int64) int64 {
 	return deleteRowsByIds(db, "message", "msgId", msgIds)
 }
@@ -409,6 +393,13 @@ func deleteImgInfo2ViaMsgSvrId(db *sql.DB, msgSvrId []int64) int64 {
 
 func deleteAppMessage(db *sql.DB, msgId []int64) int64 {
 	return deleteRowsByIds(db, "AppMessage", "msgId", msgId)
+}
+func deleteMsgQuoteByMsgID(db *sql.DB, msgId []int64) int64 {
+	return deleteRowsByIds(db, "MsgQuote", "msgId", msgId)
+}
+
+func deleteMsgQuoteBySvrId(db *sql.DB, msgSvrId []int64) int64 {
+	return deleteRowsByIds(db, "MsgQuote", "msgSvrId", msgSvrId)
 }
 
 func deleteWxFileIndex(wxFileDb *sql.DB, msgId []int64) int64 {
@@ -496,27 +487,34 @@ func cleanChatRoomNoticeAttachIndex(db *sql.DB) int64 {
 	return count
 }
 
-func cleanUserRecordDir() {
+func cleanOtherDirectoryFiles() {
+	// MicroMsgPath 辣鸡
+	removeSubDirAndFiles(MicroMsgPath + "/webservice")
+	removeSubDirAndFiles(MicroMsgPath + "/webcompt")
+	removeSubDirAndFiles(MicroMsgPath + "/CheckResUpdate")
+	removeSubDirAndFiles(MicroMsgPath + "/luckymoneynewyear")
+	removeSubDirAndFiles(MicroMsgPath + "/wepkg")
+
+	// 用户资料目录辣鸡
+	removeSubDirAndFiles(WeshitUserPath + "/corrupted")
 	removeSubDirAndFiles(WeshitUserPath + "/record")
-	log.Printf("Deleted record directory")
-}
-func cleanAppBrandDir() {
+	removeSubDirAndFiles(WeshitUserPath + "/avatar")
+	removeSubDirAndFiles(WeshitUserPath + "/game")
 	removeSubDirAndFiles(WeshitUserPath + "/appbrand")
-	log.Printf("Deleted appbrand directory")
-}
 
-func cleanCheckUpdate() {
-	// /data/data/com.tencent.mm/MicroMsg/CheckResUpdate/
-	var path = filepath.Base(WeshitUserPath) + "/CheckResUpdate"
-	removeSubDirAndFiles(path)
-	log.Printf("Deleted CheckResUpdate directory")
-}
+	// 藏在图片下的笔记图片
+	removeSubDirAndFiles(WeshitUserPath + "/image2/No")
+	// 藏起来的大图
+	removeSubDirAndFiles(WeshitUserPath + "/image2/.ref")
 
-func cleanSdcardCache() {
-	// /data/data/com.tencent.mm/MicroMsg/CheckResUpdate/
-	var path = UserSdcardPrefix + "/Android/data/com.tencent.mm/cache"
-	removeSubDirAndFiles(path)
-	log.Printf("Deleted Sdcard cache directory")
+	removeFileByGlob(WeshitUserPath + "/FTS5IndexMicroMsg*")
+
+	//sdcard
+	removeSubDirAndFiles(UserSdcardPrefix + "/Android/data/com.tencent.mm/cache")
+
+	// 微信webview
+	removeFileByGlob(WeshitPath + "/app_xwalk*")
+	removeFileByGlob(WeshitPath + "/app_webview*")
 }
 
 func VacuumDb(db *sql.DB) {
@@ -595,6 +593,8 @@ func CleanWeshitUserFiles(db *sql.DB, wxFileDb *sql.DB, scanResult *scannedFile)
 
 		deletedTotal += deleteAppMessage(db, itemIds)
 
+		deletedTotal += deleteMsgQuoteByMsgID(db, itemIds)
+
 		deletedTotal += deleteWxFileIndex(wxFileDb, itemIds)
 	}
 
@@ -602,6 +602,7 @@ func CleanWeshitUserFiles(db *sql.DB, wxFileDb *sql.DB, scanResult *scannedFile)
 	for index, itemMsgSvrIds := range chunkMsgSvrIdsData {
 		fmt.Printf("Deleting database record, msgSvrId len: %d, progress = %d/%d\r", len(itemMsgSvrIds), index, len(chunkMsgSvrIdsData))
 		deletedTotal += deleteImgInfo2ViaMsgSvrId(db, itemMsgSvrIds)
+		deletedTotal += deleteMsgQuoteBySvrId(db, itemMsgSvrIds)
 	}
 
 	log.Printf("Delete the MediaDuplication table of main database")
@@ -610,22 +611,39 @@ func CleanWeshitUserFiles(db *sql.DB, wxFileDb *sql.DB, scanResult *scannedFile)
 	log.Printf("Delete the ChatRoomNoticeAttachIndex table of main database")
 	deletedTotal += cleanChatRoomNoticeAttachIndex(db)
 
-	VacuumDb(db)
-	log.Printf("Streamlined database %s completed", "EnMicroMsg.db")
+	rows := CleanTable(db, "CleanDeleteItem")
+	log.Printf("Deleted table %s %d records from main db", "CleanDeleteItem", rows)
+	deletedTotal += rows
+
+	rows = CleanTable(db, "img_flag")
+	log.Printf("Deleted table %s %d records from main db", "img_flag", rows)
+	deletedTotal += rows
+
+	rows = CleanTable(db, "BizTimeLineInfo")
+	log.Printf("Deleted table %s %d records from main db", "BizTimeLineInfo", rows)
+	deletedTotal += rows
+
+	rows = CleanTable(db, "appattach")
+	log.Printf("Deleted table %s %d records from main db", "appattach", rows)
+	deletedTotal += rows
+
+	// rconversation 不要清理，是最近会话列表
+	//rows = CleanTable(db, "rconversation")
+	//log.Printf("Deleted table %s %d records from main db", "rconversation", rows)
+	//deletedTotal += rows
+
+	// 1GB
+	if FileSize(PathEnMicroMsgDB) > 1024000000 {
+		log.Printf("It is detected that your database is larger than 1G, Thin database will be skipped!")
+	} else {
+		VacuumDb(db)
+		log.Printf("Streamlined database %s completed", "EnMicroMsg.db")
+	}
+
 	VacuumDb(wxFileDb)
 	log.Printf("Streamlined database %s completed", "WxFileIndex.db")
 
-	cleanUserRecordDir()
-	log.Printf("Clean user record directory completed")
-
-	cleanAppBrandDir()
-	log.Printf("Clean user appbrand directory completed")
-
-	cleanCheckUpdate()
-	log.Printf("Clean global CheckUpdate directory completed")
-
-	cleanSdcardCache()
-	log.Printf("Clean sdcard cache directory completed")
+	cleanOtherDirectoryFiles()
 
 	log.Printf("Delete database records completed")
 
@@ -660,6 +678,19 @@ func CleanWeshitUserFiles(db *sql.DB, wxFileDb *sql.DB, scanResult *scannedFile)
 
 func CommandVacuum(dbpath string, key string) {
 	db := ConnectDB(dbpath, key)
+	defer db.Close()
+
+	var result int64
+	db.QueryRow("SELECT COUNT(*) FROM message").Scan(&result)
+	log.Printf("The message table have rows %d", result)
+
+	db.QueryRow("SELECT COUNT(*) FROM message WHERE  talker like '%@chatroom' ").Scan(&result)
+	log.Printf("The message table have rows %d for groups", result)
+
+	//db.Exec("DELETE FROM message where talker like '%@chatroom'")
+
+	//db.QueryRow("SELECT COUNT(*) FROM message WHERE  talker like '%@chatroom' ").Scan(&result)
+	//log.Printf("The message table have rows %d for groups", result)
 	VacuumDb(db)
 
 	log.Printf("Thin database complete!")
