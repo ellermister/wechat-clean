@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no"/>
+<meta name="renderer" content="webkit"/>
+<meta name="force-rendering" content="webkit"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+
+<link rel="stylesheet" href="https://unpkg.com/mdui@1.0.2/dist/css/mdui.min.css"/>
+<title>Wechat-Clean</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Mock.js/1.0.1-beta3/mock-min.js" integrity="sha512-k7EqwjXiJSmzbrVXmh5y9DaTbk5D82u4FWxy1EX8K8EZPHJqr3Bph3erHg2TVUIvSQbI7/mHV8Zlnz183Z7VuA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body class="mdui-drawer-body-left mdui-theme-primary-teal mdui-theme-accent-pink mdui-appbar-with-toolbar">
+<div id="app">
+    <div class="mdui-appbar mdui-appbar-fixed">
+        <div class="mdui-toolbar mdui-color-theme">
+            <a href="javascript:;" class="mdui-typo-title"  @click="toggleTop()">Wechat-Clean</a>
+            <div class="mdui-toolbar-spacer"></div>
+<!--            <a href="javascript:;" class="mdui-btn mdui-btn-icon">-->
+<!--                <i class="mdui-icon material-icons">search</i>-->
+<!--            </a>-->
+            <div class="mdui-textfield mdui-textfield-expandable mdui-float-right" @click.prevent="javascript:;">
+                <button class="mdui-textfield-icon mdui-btn mdui-btn-icon" @click.prevent="javascript:;">
+                    <i class="mdui-icon material-icons">search</i>
+                </button>
+                <input class="mdui-textfield-input" type="text" placeholder="Search" v-model="searchKeyword" />
+                <button class="mdui-textfield-close mdui-btn mdui-btn-icon" @click.prevent="searchKeyword = ''" >
+                    <i class="mdui-icon material-icons">close</i>
+                </button>
+            </div>
+
+            <a href="javascript:;" @click.prevent="loadChatRoom" class="mdui-btn mdui-btn-icon">
+                <i class="mdui-icon material-icons">refresh</i>
+            </a>
+            <a href="javascript:;" @click.prevent="SubmitCleanTask" class="mdui-btn mdui-btn-icon">
+                <i class="mdui-icon material-icons">clear_all</i>
+            </a>
+        </div>
+    </div>
+    <H2>已选中:{{ checkedRows }}</H2>
+    <div class="mdui-list">
+        <label class="mdui-list-item mdui-ripple">
+            <div class="mdui-checkbox" @click.prevent="SelectAllChats(3)">
+                <input type="checkbox" v-model="checkedFriends" />
+                <i class="mdui-checkbox-icon"></i>
+            </div>
+            <div class="mdui-list-item-content" @click.prevent="SelectAllChats(3)">选择所有好友</div>
+        </label>
+
+        <label class="mdui-list-item mdui-ripple">
+            <div class="mdui-checkbox"  @click.prevent="SelectAllChats(2)">
+                <input type="checkbox" v-model="checkedGroups" />
+                <i class="mdui-checkbox-icon"></i>
+            </div>
+            <div class="mdui-list-item-content" @click.prevent="SelectAllChats(2)">选择所有群组</div>
+        </label>
+
+    </div>
+
+    <ul class="mdui-list">
+        <li class="mdui-list-item mdui-ripple" v-for="chat in showChats" :key="chat.username">
+            <div class="mdui-list-item-avatar">
+                <img :src="chat.avatar"/>
+            </div>
+            <div class="mdui-list-item-content" v-if="chat.con_remark != ''">{{chat.con_remark}}</div>
+            <div class="mdui-list-item-content" v-else>{{chat.nickname}}</div>
+            <div>{{chat.msg_count}}条</div>
+            <div class="mdui-checkbox" @click="chat.checked=!chat.checked">
+                <input type="checkbox" v-model="chat.checked"/>
+                <i class="mdui-checkbox-icon"></i>
+            </div>
+        </li>
+    </ul>
+
+</div>
+
+<!-- MDUI JavaScript -->
+<script src="https://unpkg.com/mdui@1.0.2/dist/js/mdui.min.js"></script>
+<script>
+    function debounce(fn, delay) {
+        let timer = null;
+
+        return function () {
+            const context = this;
+            const args = arguments;
+            if (timer) {
+                clearTimeout(timer);
+            }
+            timer = setTimeout(() => {
+                fn.apply(context, args);
+            }, delay);
+        };
+    }
+</script>
+<script>
+    const { createApp, ref, reactive,watch } = Vue
+
+    const CreateConnect = ()=>{
+        var conn;
+        if (window["WebSocket"]) {
+            conn = new WebSocket("ws://" + document.location.host + "/ws");
+            conn.onclose = function (evt) {
+                console.error("Connection closed.", evt)
+            };
+        } else {
+            document.innerHTML = "<b>Your browser does not support WebSockets.</b>";
+        }
+        return conn
+    }
+
+    const SubmitCleanTask = ()=>{
+        const checkedList = chats.filter(i=>i.checked)
+        const sumchecked = checkedList.length
+        let text = ""
+        let usernames = []
+        checkedList.forEach((value,index) =>{
+            const No = index+1
+            text += `${No}: ${value.nickname}<br/>`
+            usernames.push(value.username)
+        })
+        mdui.confirm(`以下一共 ${sumchecked} 项被勾选，点击提交将发送ID到程序进行扫描清理，期间请不要关闭程序<br/>${text}`, '确认提交提醒', function(){
+            mdui.alert('已提交请耐心等待，观察终端日志!');
+            conn.send(JSON.stringify({
+                command:"SubmitCleanTask",
+                data: usernames.join(",")
+            }))
+        });
+    }
+
+    const formatChats = (chats)=>{
+        return chats.map(i => {
+            i.checked = false
+            return i
+        })
+    }
+
+    let isTop = false
+    const toggleTop =()=>{
+        isTop = !isTop
+
+        console.log('toggleTop', isTop)
+        if(isTop){
+            // window.scrollTo(0, 0);
+            window.scrollTo(0,document.getElementById('app').scrollHeight )
+        }else{
+            window.scrollTo(0,0)
+        }
+    }
+
+    const checkedFriends = ref(false)
+    const checkedGroups = ref(false)
+    const checkedRows = ref(0)
+
+    const SelectAllChats = (type)=>{
+        let setValue = false
+        if(type === 2){
+            setValue = checkedGroups.value = !checkedGroups.value
+        }else{
+            setValue = checkedFriends.value = !checkedFriends.value
+        }
+
+        chats.filter(v => v.type == type).forEach((v)=>{
+            v.checked = setValue
+        })
+
+        refreshChecked()
+    }
+
+    const refreshChecked = ()=>{
+        checkedRows.value = chats.filter(i => i.checked).length
+    }
+
+    const loadChatRoom = ()=>{
+        chats.splice(0, chats.length)
+
+        conn.send(`{"command":"GetChatroom","data":""}`)
+    }
+
+    const conn = CreateConnect()
+    conn.addEventListener('open', ()=>{
+        loadChatRoom()
+    })
+    const chats = reactive([])
+    const showChats = reactive([])
+    const searchKeyword = ref('')
+
+    const refreshChats = ()=>{
+        showChats.splice(0, showChats.length)
+        if(searchKeyword.value !== ""){
+            const keyLow = searchKeyword.value.toLowerCase()
+            Object.assign(showChats, chats.filter(i => {
+                if(i.con_remark !== "" && i.con_remark.toLowerCase().indexOf(keyLow) > -1){
+                    console.log('matched by con_remark:', keyLow, i.con_remark)
+                    return true
+                }else if(i.nickname !== "" && i.nickname.toLowerCase().indexOf(keyLow) > -1){
+                    console.log('matched by nickname:', keyLow, i.nickname)
+                    return true
+                }
+                return false
+            }) )
+        }else{
+            Object.assign(showChats,chats)
+        }
+    }
+    watch(searchKeyword,debounce(refreshChats, 700))
+
+    watch(chats,(newValue)=>{
+        refreshChecked()
+    })
+
+    const mockChatsData = ()=>{
+        const data = []
+        while(data.length<996){
+            let name = ""
+            let remark = ""
+            const gender = Mock.Random.integer(1, 2) == 1?"male":"female"
+            const type = Mock.Random.integer(2, 3)
+            if(type == 2){
+                name = Mock.Random.city() + "张小龙粉丝群"+ Mock.Random.integer(1, 11)
+                remark = ""
+            }else{
+                name = Mock.Random.cname()
+                remark = name+"("+ Mock.Random.city() +")"
+            }
+            // female
+            data.push({
+                avatar: 'https://xsgames.co/randomusers/avatar.php?g='+gender+'&random='+Math.random(),
+                con_remark: remark,
+                nickname: name,
+                msg_count: Mock.Random.integer(1, 450000),
+                type: type,
+                username: Mock.Random.string('lower', 12),
+            })
+        }
+
+        return {
+            command: "GetChatroom",
+            data: data
+        }
+    }
+
+    document.addEventListener('GetChatroom',(ev)=>{
+        if(localStorage.getItem('test')){
+            const messagePackage = mockChatsData()
+            const chatList = formatChats(messagePackage.data)
+            chatList.map(i => chats.push(i))
+            refreshChecked()
+            refreshChats()
+        }else{
+            if(ev.data && ev.data.data){
+                const chatList = formatChats(ev.data.data)
+                chatList.map(i => chats.push(i))
+                refreshChecked()
+                refreshChats()
+            }
+        }
+    })
+
+    document.addEventListener('SubmitCleanTask',(ev)=>{
+        if(ev.data && ev.data.message){
+            mdui.alert(ev.data.message);
+        }
+    })
+
+    conn.addEventListener('message',(evt)=>{
+        const messages = evt.data.split('\n');
+        for (let i = 0; i < messages.length; i++) {
+            const messagePackage = JSON.parse(messages[i])
+            if(messagePackage){
+                const ev = new Event(messagePackage.command, {"bubbles":false, "cancelable":false});
+                ev.data = messagePackage
+                document.dispatchEvent(ev)
+            }
+        }
+    })
+    createApp({
+        mounted(){
+            console.log('mounted')
+        },
+        setup() {
+            return {
+                chats,
+                loadChatRoom,
+                SelectAllChats,
+                checkedFriends,
+                checkedGroups,
+                checkedRows,
+                toggleTop,
+                searchKeyword,
+                showChats,
+                SubmitCleanTask,
+            }
+        }
+    }).mount('#app')
+</script>
+
+</body>
+</html>

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"os/exec"
@@ -116,5 +117,27 @@ func EnableApp(packageName string) {
 	err := cmd.Run()
 	if err != nil {
 		log.Printf("Failed to Enable app:%s, err: %e", packageName, err)
+	}
+}
+
+type ServerResponseJson struct {
+	Command string `json:"command"`
+	Status  int    `json:"status"`
+	Data    any    `json:"data"`
+	Message string `json:"message"`
+}
+
+func rjson(command string, message string, status int, data any) []byte {
+	var response ServerResponseJson
+	response.Data = data
+	response.Status = status
+	response.Command = command
+	response.Message = message
+	jsonString, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("json.Marshal err: %s", err)
+		return []byte{}
+	} else {
+		return jsonString
 	}
 }

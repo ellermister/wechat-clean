@@ -51,8 +51,7 @@ type scannedFile struct {
 	msgSvrId []int64
 }
 
-func ScanMessages(db *sql.DB, fromType int) scannedFile {
-	var sqlText = BuildQuerySql(fromType)
+func ScanMessages(db *sql.DB, sqlText string) scannedFile {
 	records, err := db.Query(sqlText)
 	if err != nil {
 		log.Fatalf("Scan chatroom error %e", err)
@@ -69,7 +68,9 @@ func ScanMessages(db *sql.DB, fromType int) scannedFile {
 	var foundFilesName []string
 	var localExtraFilesName []string
 
-	log.Printf("Found a totoal %d file in local image2, example: %s\n", len(localFilenames), localFilenames[len(localFilenames)-1])
+	if len(localFilenames) > 0 {
+		log.Printf("Found a totoal %d file in local image2, example: %s\n", len(localFilenames), localFilenames[len(localFilenames)-1])
+	}
 
 	var scanResult scannedFile
 	for records.Next() {
@@ -219,6 +220,19 @@ func BuildQuerySql(fromType int) string {
 		log.Fatalln("Invalid fromType")
 	}
 	return sqlText
+}
+
+func BuildQuerySqlByUserNames(usernames []string) string {
+	var formatUserName []string
+	for _, value := range usernames {
+		formatUserName = append(formatUserName, fmt.Sprintf("\"%s\"", value))
+	}
+
+	var usernamesJoined = strings.Join(formatUserName, ",")
+
+	return fmt.Sprintf(`SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
+			left join ImgInfo2 as img on img.msglocalid=m.msgId 
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker in(%s)    order by m.msgId desc`, usernamesJoined)
 }
 
 func EchoDirStat() {
@@ -409,7 +423,7 @@ func deleteWxFileIndex(wxFileDb *sql.DB, msgId []int64) int64 {
 func cleanMediaDuplication(db *sql.DB) int64 {
 	rows, err := db.Query("SELECT md5, path FROM MediaDuplication")
 	if err != nil {
-		log.Fatalf("Query failed: %v", err)
+		log.Fatalf("Data failed: %v", err)
 	}
 
 	var count int64
@@ -449,7 +463,7 @@ func cleanMediaDuplication(db *sql.DB) int64 {
 func cleanChatRoomNoticeAttachIndex(db *sql.DB) int64 {
 	rows, err := db.Query("SELECT msgId,dataPath, thumbPath FROM ChatroomNoticeAttachIndex")
 	if err != nil {
-		log.Fatalf("Query failed: %v", err)
+		log.Fatalf("Data failed: %v", err)
 	}
 
 	defer rows.Close()

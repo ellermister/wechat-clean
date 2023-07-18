@@ -142,11 +142,11 @@ print(key)
 ```bash
 ./wechat-clean -h
 
-Wechat-Clean v20230716
+Wechat-Clean v20230719
 
-Usage of ./wechat-clean:
+Usage of D:\projects\wechat-clean\wechat-clean.exe:
   -cmd string
-        scan/clean (default "scan")
+        scan/clean/server (default "scan")
   -from string
         groups/friends/all
   -id string
@@ -203,6 +203,28 @@ adb push EnMicroMsg.db /data/local/tmp
 android #
 cp /data/local/tmp/EnMicroMsg.db /data/data/com.tencent.mm/MicroMsg/****/EnMicroMsg.db
 ```
+
+
+
+### UI界面手动清理
+
+以服务器形式启动，通过手机或者同一个局域网下的电脑可以进行访问执行操作。
+
+**默认端口为 9999 请避免端口占用。**
+
+只需要如下参数即可启动：
+
+```bash
+./wechat-clean -id [32ID]  -cmd server -key [7key]
+```
+支持操作：
+- 搜索昵称备注
+- 全选/取消全选所有好友
+- 全选/取消权限所有群组
+- 单选任意会话
+
+
+![](assets/wechat-clean.gif)
 
 
 
