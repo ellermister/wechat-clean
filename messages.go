@@ -199,22 +199,28 @@ func collectFileStat(fileStat *statFileType, fileType int, path string) {
 
 func BuildQuerySql(fromType int) string {
 	var sqlText string
+
+	var addWhere string
+	if flags.onlyMedia {
+		addWhere = " and m.imgPath !='' "
+	}
+
 	switch fromType {
 	case FromTypeALL:
 		// 为什么不用 img.msglocalid 关联, 因为实际数据中有一部分没有 msglocalid, msgSvrId 更全面
-		sqlText = `SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
+		sqlText = fmt.Sprintf(`SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
 			left join ImgInfo2 as img on img.msglocalid=m.msgId 
-			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId  order by m.msgId desc`
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where 1=1 %s order by m.msgId desc`, addWhere)
 		break
 	case FromTypeFriends:
-		sqlText = `SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
+		sqlText = fmt.Sprintf(`SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
 			left join ImgInfo2 as img on img.msglocalid=m.msgId 
-			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker not like '%@chatroom'    order by m.msgId desc`
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker not like '%%@chatroom' %s   order by m.msgId desc`, addWhere)
 		break
 	case FromTypeGroups:
-		sqlText = `SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
+		sqlText = fmt.Sprintf(`SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
 			left join ImgInfo2 as img on img.msglocalid=m.msgId 
-			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker like '%@chatroom'    order by m.msgId desc`
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker like '%%@chatroom' %s   order by m.msgId desc`, addWhere)
 		break
 	default:
 		log.Fatalln("Invalid fromType")
@@ -223,6 +229,11 @@ func BuildQuerySql(fromType int) string {
 }
 
 func BuildQuerySqlByUserNames(usernames []string) string {
+	var addWhere string
+	if flags.onlyMedia {
+		addWhere = " and m.imgPath !='' "
+	}
+
 	var formatUserName []string
 	for _, value := range usernames {
 		formatUserName = append(formatUserName, fmt.Sprintf("\"%s\"", value))
@@ -232,7 +243,7 @@ func BuildQuerySqlByUserNames(usernames []string) string {
 
 	return fmt.Sprintf(`SELECT m.msgId, m.msgSvrId, m.type, m.imgPath, m.talker, img.bigImgPath, img.midImgPath, img.hevcPath, img2.bigImgPath, img2.midImgPath, img2.hevcPath FROM 'message' as m 
 			left join ImgInfo2 as img on img.msglocalid=m.msgId 
-			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker in(%s)    order by m.msgId desc`, usernamesJoined)
+			left join ImgInfo2 as img2 on img2.msgSvrId=m.msgSvrId where  m.talker in(%s) %s   order by m.msgId desc`, usernamesJoined, addWhere)
 }
 
 func EchoDirStat() {

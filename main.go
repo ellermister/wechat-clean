@@ -23,7 +23,7 @@ var WeshitUserPathSdcard = UserSdcardPrefix + "/Android/data/com.tencent.mm/Micr
 var PathEnMicroMsgDB = "EnMicroMsg.db"
 var PathWxFileIndexDB = "WxFileIndex.db"
 
-const version = "v20230719"
+const version = "v20230720"
 
 type FlagArgs struct {
 	aUserId     int
@@ -32,6 +32,7 @@ type FlagArgs struct {
 	commandType string
 	fromType    string
 	vacuumDB    string
+	onlyMedia   bool // scan media records of db
 }
 
 var flags FlagArgs
@@ -51,6 +52,7 @@ func main() {
 	flag.StringVar(&flags.commandType, "cmd", "scan", "scan/clean/server")
 	flag.StringVar(&flags.fromType, "from", "", "groups/friends/all")
 	flag.StringVar(&flags.vacuumDB, "vd", "", "Vacuum db full path")
+	flag.BoolVar(&flags.onlyMedia, "only-media", false, "Scan media messages only")
 	flag.Parse()
 
 	if flags.vacuumDB != "" {
@@ -120,6 +122,10 @@ func main() {
 		log.Fatalf("Not found User SD card directory of wechat")
 	}
 	log.Printf("found User SD card directory of wechat: %s", WeshitUserPathSdcard)
+
+	if flags.onlyMedia {
+		log.Printf("The current program only scans media records of database!")
+	}
 
 	SetupCloseHandler()
 
