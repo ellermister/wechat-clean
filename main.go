@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	_ "github.com/mutecomm/go-sqlcipher"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var WeshitPath = "/data/user/[UID]/com.tencent.mm"
@@ -91,13 +91,12 @@ func main() {
 		PathWxFileIndexDB = "WxFileIndex.db"
 	}
 
-	if CheckDB(PathEnMicroMsgDB) == false {
-		log.Fatal("This database file is not encrypted, will be skipped.")
-	}
-
 	// 在连接前清理工作区
 	if flags.commandType == "clean" || flags.commandType == "server" {
 		// 提前删除预写缓存文件
+		// 这一步存疑， 有时候会毁坏数据库文件（实际上没毁坏只是微信读到是损坏的，建议备份损坏前后的文件，把损坏DB里你需要的数据写到没损坏的db里，附加数据库之后 insert from select table就行）
+		// 如果不清理的话可能也会有问题，正常情况下SQLITE协议关闭连接时会自动删除这些文件的。微信大多数情况处于意外关闭的。
+		// 先暂时这样，最好在执行前手动结束微信进程，让系统给与微信进程信号能够安全退出，然后自己再执行 pm disable com.tencent.mm 来冻结微信确保不会自启
 		if Exists(PathEnMicroMsgDB + "-wal") {
 			os.Remove(PathEnMicroMsgDB + "-wal")
 		}

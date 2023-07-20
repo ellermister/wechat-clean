@@ -646,13 +646,10 @@ func CleanWeshitUserFiles(db *sql.DB, wxFileDb *sql.DB, scanResult *scannedFile)
 	//log.Printf("Deleted table %s %d records from main db", "rconversation", rows)
 	//deletedTotal += rows
 
-	// 1GB
-	if FileSize(PathEnMicroMsgDB) > 1024000000 {
-		log.Printf("It is detected that your database is larger than 1G, Thin database will be skipped!")
-	} else {
-		VacuumDb(db)
-		log.Printf("Streamlined database %s completed", "EnMicroMsg.db")
-	}
+	// github.com/jgiannuzzi/go-sqlite3
+	// 使用了 jgiannuzzi 的包之后似乎arm64上执行大体积DB也不会内存溢出了，这里删除掉1GB文件判断。
+	VacuumDb(db)
+	log.Printf("Streamlined database %s completed", "EnMicroMsg.db")
 
 	VacuumDb(wxFileDb)
 	log.Printf("Streamlined database %s completed", "WxFileIndex.db")
